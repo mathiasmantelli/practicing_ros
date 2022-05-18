@@ -1,0 +1,8 @@
+prefix=/home/mathias/node_robotics/install
+
+Name: kalman_filter_task
+Description: Description of kalman_filter_task
+Version: 0.0.0
+Cflags: -I${prefix}/include
+Libs: -L${prefix}/lib -lkalman_filter_task
+Requires: roscpp rospy std_msgs

@@ -1,0 +1,2 @@
+kalman_filter_task
+-DCATKIN_DEVEL_PREFIX=/home/mathias/node_robotics/devel -DCMAKE_INSTALL_PREFIX=/home/mathias/node_robotics/install -G Unix Makefiles
