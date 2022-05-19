@@ -1,0 +1,6 @@
+coding_task.zip
+
+build/*
+devel/*
+coding_task/*
+src/kalman_filter_task/bags/*
