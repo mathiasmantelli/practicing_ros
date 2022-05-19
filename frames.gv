@@ -1,0 +1,19 @@
+digraph G {
+"camera_link" -> "camera_depth_frame"[label="Broadcaster: /rosbag_play\nAverage rate: 10000.000 Hz\nMost recent transform: 0.000 ( 1652966065.296 sec old)\nBuffer length: 0.000 sec\n"];
+"base_link" -> "camera_link"[label="Broadcaster: /rosbag_play\nAverage rate: 49.813 Hz\nMost recent transform: 1647448349.073 ( 5517716.222 sec old)\nBuffer length: 4.979 sec\n"];
+"camera_depth_frame" -> "camera_depth_optical_frame"[label="Broadcaster: /rosbag_play\nAverage rate: 10000.000 Hz\nMost recent transform: 0.000 ( 1652966065.296 sec old)\nBuffer length: 0.000 sec\n"];
+"camera_link" -> "camera_color_frame"[label="Broadcaster: /rosbag_play\nAverage rate: 10000.000 Hz\nMost recent transform: 0.000 ( 1652966065.296 sec old)\nBuffer length: 0.000 sec\n"];
+"camera_color_frame" -> "camera_color_optical_frame"[label="Broadcaster: /rosbag_play\nAverage rate: 10000.000 Hz\nMost recent transform: 0.000 ( 1652966065.296 sec old)\nBuffer length: 0.000 sec\n"];
+"odom_combined" -> "base_footprint"[label="Broadcaster: /rosbag_play\nAverage rate: 100.194 Hz\nMost recent transform: 1647448349.055 ( 5517716.240 sec old)\nBuffer length: 4.990 sec\n"];
+"map" -> "odom_combined"[label="Broadcaster: /rosbag_play\nAverage rate: 20.203 Hz\nMost recent transform: 1647448349.049 ( 5517716.246 sec old)\nBuffer length: 4.950 sec\n"];
+"base_footprint" -> "base_link"[label="Broadcaster: /rosbag_play\nAverage rate: 10.192 Hz\nMost recent transform: 1647448349.072 ( 5517716.224 sec old)\nBuffer length: 4.906 sec\n"];
+"base_link" -> "left_wheel_link"[label="Broadcaster: /rosbag_play\nAverage rate: 41.598 Hz\nMost recent transform: 1647448349.045 ( 5517716.251 sec old)\nBuffer length: 4.976 sec\n"];
+"base_link" -> "right_wheel_link"[label="Broadcaster: /rosbag_play\nAverage rate: 41.598 Hz\nMost recent transform: 1647448349.045 ( 5517716.251 sec old)\nBuffer length: 4.976 sec\n"];
+"base_link" -> "base_rear_sf_link"[label="Broadcaster: /rosbag_play\nAverage rate: 49.874 Hz\nMost recent transform: 1647448349.081 ( 5517716.214 sec old)\nBuffer length: 4.993 sec\n"];
+"base_link" -> "base_front_sf_link"[label="Broadcaster: /rosbag_play\nAverage rate: 49.838 Hz\nMost recent transform: 1647448349.075 ( 5517716.221 sec old)\nBuffer length: 4.976 sec\n"];
+"base_footprint" -> "scan_odom"[label="Broadcaster: /rosbag_play\nAverage rate: 20.203 Hz\nMost recent transform: 1647448349.049 ( 5517716.246 sec old)\nBuffer length: 4.950 sec\n"];
+edge [style=invis];
+ subgraph cluster_legend { style=bold; color=black; label ="view_frames Result";
+"Recorded at time: 1652966065.296"[ shape=plaintext ] ;
+ }->"map";
+}
