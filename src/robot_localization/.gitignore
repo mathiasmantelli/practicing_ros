@@ -3,5 +3,5 @@ doc/html
 *.project
 *.settings
 
-build/
-devel/
+../build/*
+../devel/*
