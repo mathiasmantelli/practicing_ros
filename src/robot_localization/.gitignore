@@ -5,3 +5,4 @@ doc/html
 
 ../build/*
 ../devel/*
+build/*
