@@ -1,0 +1,4 @@
+<launch>
+  <node pkg="image_projection" type="pointcloud2image" name="pointcloud2image" output="screen"/>
+   
+</launch>

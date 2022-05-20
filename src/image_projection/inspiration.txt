@@ -1,0 +1,56 @@
+void drawing_plugins::NavMsgsPathDrawing::Draw(
+    cv_bridge::CvImagePtr& image, const image_geometry::PinholeCameraModel& camera_info) {
+  if (!enabled || storage_.header.frame_id.empty()) return;
+
+  if (!tf2_buffer_.canTransform(image->header.frame_id, storage_.header.frame_id, ros::Time(0)))
+    return;
+
+
+  /** Pega a transformada de posição da camera para o frame do path */
+  geometry_msgs::TransformStamped transform;
+
+  try {
+    transform =
+        tf2_buffer_.lookupTransform(image->header.frame_id, storage_.header.frame_id, ros::Time(0));
+  } catch (tf2::TransformException& ex) {
+    ROS_WARN("%s", ex.what());
+    return;
+  }
+
+  /** Faz as conversões para poder utilizar na função do opencv [Transforma em Vec3D e cv::Mat] */
+  cv::Vec3d tvec(transform.transform.translation.x, transform.transform.translation.y,
+                 transform.transform.translation.z);
+
+  const tf2::Quaternion quaternion(transform.transform.rotation.x, transform.transform.rotation.y,
+                                   transform.transform.rotation.z, transform.transform.rotation.w);
+
+  tf2::Matrix3x3 matrix;
+  matrix.setRotation(quaternion);
+  auto row0 = matrix.getRow(0);
+  auto row1 = matrix.getRow(1);
+  auto row2 = matrix.getRow(2);
+  cv::Mat rotationMatrix = (cv::Mat1d(3, 3) << row0.getX(), row0.getY(), row0.getZ(), row1.getX(),
+                            row1.getY(), row1.getZ(), row2.getX(), row2.getY(), row2.getZ());
+  cv::Mat rvec;
+  cv::Rodrigues(rotationMatrix, rvec);
+  std::vector<cv::Point3f> points;
+
+  /** Converter o path para um vetor de pontos */
+  for (auto point : storage_.poses) {
+    points.emplace_back(point.pose.position.x, point.pose.position.y, point.pose.position.z);
+  }
+
+  /** Pegar posição dos pontos projetados ( veja como foi de Point3f para Point2f) */
+  std::vector<cv::Point2f> projectedPoints;
+  cv::projectPoints(points, rvec, tvec, camera_info.fullIntrinsicMatrix(),
+                    camera_info.distortionCoeffs(), projectedPoints);
+
+  /** Desenhar na imagem [ aqui no caso eu desenhei uma linha ] */
+  for (int index = 0; index < projectedPoints.size() - 1; index++) {
+    cv::line(image->image, cv::Point(projectedPoints.at(index).x, projectedPoints.at(index).y),
+             cv::Point(projectedPoints.at(index + 1).x, projectedPoints.at(index + 1).y),
+             cv::Scalar(255, 0, 0), 2, cv::LINE_8);
+  }
+}
+
+
