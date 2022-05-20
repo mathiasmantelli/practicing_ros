@@ -14,41 +14,41 @@
 #include <opencv2/imgproc.hpp>
 #include <opencv2/calib3d.hpp>
 
-struct lidar_point{
+struct Lidar_Point{
     float x, y, z, intensity;
 };
 
-int load_image(const std::string image_path, cv::Mat& img){
+int LoadImage(const std::string image_path, cv::Mat& img){
     img = cv::imread(image_path, cv::IMREAD_COLOR);
     if(img.empty())
     {
-        std::cout << "Could not read the image: " << image_path << std::endl;
         return -1;
-    }
-    // cv::imshow("Display window", img);
-    int k = cv::waitKey(0); // Wait for a keystroke in the window
-    if(k == 's')
-    {
-        cv::imwrite("projected_pointcloud.png", img);
     }
     return 1;
 }
 
-std::tuple<cv::Mat, cv::Mat> defining_projection_matrix(){
-    cv::Mat intrinsics_mat = cv::Mat::zeros(3,3, CV_32FC1);
-    //(3,3, cv::DataType<double>::type);
+std::tuple<cv::Mat, cv::Mat> DefineProjectionMatrix(){
+    /*Creating Intrinsic Matrix*/
     float focal_len_m, pixel_dim_m;
     int cam_size_u_px, cam_size_v_px;
     focal_len_m = 0.00605f;
     pixel_dim_m = 0.00000375f;
     cam_size_u_px = 1280;
     cam_size_v_px = 960;
-    intrinsics_mat.at<float>(0,0) = focal_len_m; 
-    intrinsics_mat.at<float>(1,1) = focal_len_m;
-    intrinsics_mat.at<float>(2,2) = 1.0;
-    intrinsics_mat.at<float>(0,2) = cam_size_u_px/2.0;
-    intrinsics_mat.at<float>(1,2) = cam_size_v_px/2.0;
+    cv::Mat intrinsic_mat(3,3, cv::DataType<double>::type);
+    intrinsic_mat.at<double>(0,0) = focal_len_m/pixel_dim_m;
+    intrinsic_mat.at<double>(1,0) = 0;
+    intrinsic_mat.at<double>(2,0) = 0;
 
+    intrinsic_mat.at<double>(0,1) = 0;
+    intrinsic_mat.at<double>(1,1) = focal_len_m/pixel_dim_m;
+    intrinsic_mat.at<double>(2,1) = 0;
+
+    intrinsic_mat.at<double>(0,2) = cam_size_u_px/2.0;
+    intrinsic_mat.at<double>(1,2) = cam_size_v_px/2.0;
+    intrinsic_mat.at<double>(2,2) = 1;
+
+    /*Creating Extrinsic Matrix*/
     float cam_x_m, cam_y_m, cam_z_m, cam_roll_rad, cam_pitch_rad, cam_yaw_rad;
     cam_x_m = 1.95;
     cam_y_m = 0.0;
@@ -56,46 +56,43 @@ std::tuple<cv::Mat, cv::Mat> defining_projection_matrix(){
     cam_roll_rad = -0.012;
     cam_pitch_rad = 0.02;
     cam_yaw_rad = 0.0;
-    cv::Mat extrinsicts_mat = cv::Mat::zeros(3,4, CV_32FC1);
-    extrinsicts_mat.at<float>(0,0) = cam_roll_rad;
-    extrinsicts_mat.at<float>(1,1) = cam_pitch_rad;
-    extrinsicts_mat.at<float>(2,2) = cam_yaw_rad;
-    extrinsicts_mat.at<float>(0,3) = cam_x_m;
-    extrinsicts_mat.at<float>(1,3) = cam_y_m;
-    extrinsicts_mat.at<float>(2,3) = cam_z_m;
+    
+    cv::Mat extrinsic_mat(3,4, cv::DataType<double>::type);
+    extrinsic_mat.at<double>(0,0) = cam_roll_rad;
+    extrinsic_mat.at<double>(1,0) = 0;
+    extrinsic_mat.at<double>(2,0) = 0;
 
-    return std::make_tuple(intrinsics_mat, extrinsicts_mat);
+    extrinsic_mat.at<double>(0,1) = 0;
+    extrinsic_mat.at<double>(1,1) = cam_pitch_rad;
+    extrinsic_mat.at<double>(2,1) = 0;
+
+    extrinsic_mat.at<double>(0,2) = 0;
+    extrinsic_mat.at<double>(1,2) = 0;
+    extrinsic_mat.at<double>(2,2) = cam_y_m;
+
+    extrinsic_mat.at<double>(0,3) = cam_x_m;
+    extrinsic_mat.at<double>(1,3) = cam_y_m;
+    extrinsic_mat.at<double>(2,3) = cam_z_m;
+
+    return std::make_tuple(intrinsic_mat, extrinsic_mat);
 }
 
-int read_pointcloud_csv(const std::string pointcloud_path, std::vector<lidar_point>& pointcloud, float max_intensity){
+int ReadPointcloudCSV(const std::string pointcloud_path, std::vector<Lidar_Point>& pointcloud, float& average, float& std_dev){
     std::string line, word, temp; 
     std::fstream pointcloud_file(pointcloud_path, std::ios::in);
-    int rollnum, roll, count = 0;
-    rollnum = 50; 
-    // std::vector<std::string> row; 
-    // std::vector<std::vector<std::string>> multiple_rows; 
+
     std::vector<float> row_values; 
     std::vector<std::vector<float>> multiple_rows_values;     
     if(pointcloud_file.is_open()){
         while(getline(pointcloud_file, line)){
-            //row.clear();
             row_values.clear();
             std::stringstream s(line);
             while(getline(s, word, ',')){
-                // row.push_back(word);
                 row_values.push_back(std::stof(word));
             }
-            // multiple_rows.push_back(row);
             multiple_rows_values.push_back(row_values);
-            // std::cout << "Size row: " << row.size() << std::endl;
-            //std::cout << "Size multiple row: " << multiple_rows.size() << std::endl;
         }
-        /*std::cout << "Size row: " << row.size() << std::endl;
-        for(int i = 0; i < rollnum; i++){
-            std::cout <<"TESTing: " << multiple_rows[0][i] << " " << multiple_rows[1][i] << " " << multiple_rows[2][i] << " " << multiple_rows[3][i] << std::endl;
-        }
-        std::cout << std::endl;*/
-        lidar_point new_point; 
+        Lidar_Point new_point; 
         new_point.x = 0;
         new_point.y = 0;
         new_point.z = 0;
@@ -107,33 +104,30 @@ int read_pointcloud_csv(const std::string pointcloud_path, std::vector<lidar_poi
             new_point.z = multiple_rows_values[2][i];
             new_point.intensity = multiple_rows_values[3][i];
             sum += new_point.intensity;
-            if(max_intensity < new_point.intensity)
-                max_intensity = new_point.intensity;
             pointcloud.push_back(new_point);
-            //std::cout <<"TESTing: " << multiple_rows[0][i] << " " << multiple_rows[1][i] << " " << multiple_rows[2][i] << " " << multiple_rows[3][i] << std::endl;
         }   
-        std::cout << "MAX INTENSITY : " << max_intensity << " | Average: " << sum/multiple_rows_values[0].size() << std::endl;     
         float variance = 0; 
-        float average = sum/multiple_rows_values[0].size();
+        average = sum/multiple_rows_values[0].size();
         for(int i = 0; i < multiple_rows_values[0].size(); i++){
             variance += std::pow((multiple_rows_values[3][i] - average),2);
         }
-        float std_dev = std::sqrt(variance/multiple_rows_values[0].size());
-        std::cout << "MAX INTENSITY : " << max_intensity << " | Average: " << average << " | Std Dev: " << std_dev << std::endl;     
+        std_dev = std::sqrt(variance/multiple_rows_values[0].size());
+        std::cout << "Average: " << average << " | Std Dev: " << std_dev << std::endl;     
         return 1; 
     }else{
         return -1; 
     }
 }
 
-cv::Mat pointcloud2image(const cv::Mat intrinsics_mat,const  cv::Mat extrinsicts_mat,const  std::vector<lidar_point> pointcloud,const  cv::Mat img){
+cv::Mat PointCloud2Image(const cv::Mat intrinsics_mat, const  cv::Mat extrinsicts_mat, const std::vector<Lidar_Point> pointcloud, const cv::Mat img){
     cv::Mat pointcloud_projected;
     img.copyTo(pointcloud_projected);
-    cv::Mat point_3d = cv::Mat::ones(4,1, CV_32FC1);
+    cv::Mat point_3d(4,1, cv::DataType<double>::type);
+    point_3d.at<double>(0,0) = pointcloud[0].x;
+    point_3d.at<double>(1,0) = pointcloud[0].y;
+    point_3d.at<double>(2,0) = pointcloud[0].z;    
+    point_3d.at<double>(3,0) = 1.0;
     cv::Mat result, result2;
-    point_3d.at<float>(0,0) = pointcloud[0].x;
-    point_3d.at<float>(1,0) = pointcloud[0].y;
-    point_3d.at<float>(2,0) = pointcloud[0].z;    
     std::cout << "POINT 3D: [" << point_3d.rows << ", " << point_3d.cols << "]" << std::endl;
     std::cout << "Point 3D[" << point_3d.at<float>(0,0) << ", "  << point_3d.at<float>(1,0) << ", " << point_3d.at<float>(2,0) << "]" << std::endl;    
     std::cout << "Intrinsics: [" << intrinsics_mat.rows << ", " << intrinsics_mat.cols << "] Extrinsic: ["  << extrinsicts_mat.rows << ", " << extrinsicts_mat.cols << "] Point3D: ["   << point_3d.rows << ", " << point_3d.cols << "]" << std::endl;
@@ -177,7 +171,7 @@ cv::Mat pointcloud2image(const cv::Mat intrinsics_mat,const  cv::Mat extrinsicts
     return pointcloud_projected;
 }
 
-cv::Mat projectPoints(const std::vector<lidar_point> pointcloud, const cv::Mat img, float max_intensity){
+cv::Mat ProjectPoints(const std::vector<Lidar_Point> pointcloud, const cv::Mat img, float average, float std_dev){
     cv::Mat pointcloud_projected;
     img.copyTo(pointcloud_projected);
     std::vector<cv::Point3f> points; 
@@ -244,7 +238,7 @@ cv::Mat projectPoints(const std::vector<lidar_point> pointcloud, const cv::Mat i
     for(int index = 0; index < projectedPoints.size() - 1; index++){
         if(projectedPoints.at(index).x > 0 && projectedPoints.at(index).x < 1280 && 
            projectedPoints.at(index).y > 0 && projectedPoints.at(index).y < 960)
-            cv::circle(pointcloud_projected, cv::Point(int(projectedPoints.at(index).x), int(projectedPoints.at(index).y)), 5, cv::Scalar(0, 0,255*(1 - (pointcloud[index].intensity - 0.00802395)/0.00547971)), -1);        //
+            cv::circle(pointcloud_projected, cv::Point(int(projectedPoints.at(index).x), int(projectedPoints.at(index).y)), 5, cv::Scalar(0, 0,255*((pointcloud[index].intensity - average)/std_dev)), -1);      
     }
     return pointcloud_projected;
 }
@@ -252,14 +246,14 @@ cv::Mat projectPoints(const std::vector<lidar_point> pointcloud, const cv::Mat i
 int main(int argc, char **argv){
     /*Defining the projection matrix (first the intrinsic and later extrinsic matrices)*/
     cv::Mat intrinsics_mat, extrinsicts_mat;
-    std::tie(intrinsics_mat, extrinsicts_mat) = defining_projection_matrix();
+    std::tie(intrinsics_mat, extrinsicts_mat) = DefineProjectionMatrix();
 
     /*Reading the point cloud from a CVS file*/
-    float max_intensity = -1;
+    float average, std_dev;
     std::string pointcloud_csv_file = "../../../coding_task/pointcloud.csv";
-    std::vector<lidar_point> pointcloud;
+    std::vector<Lidar_Point> pointcloud;
     pointcloud.clear();
-    int pointcloud_read_sucess = read_pointcloud_csv(pointcloud_csv_file, pointcloud, max_intensity);
+    int pointcloud_read_sucess = ReadPointcloudCSV(pointcloud_csv_file, pointcloud, average, std_dev);
     if(pointcloud_read_sucess){
         std::cout << "Amount of points in the point cloud: " << pointcloud.size() << std::endl;
     }else{
@@ -270,33 +264,21 @@ int main(int argc, char **argv){
     cv::Mat img;
     int image_read_success;
     std::string image_path = "../../../coding_task/cameraimage.jpeg";
-    image_read_success = load_image(image_path, img);
-    // if(image_read_success)
-        // cv::imshow("Display window", img);
-
+    image_read_success = LoadImage(image_path, img);
+    if(image_read_success){
+        std::cout << "Image has been read" << std::endl;
+    }else{
+        std::cout << "Could not read the image: " << image_path << std::endl;
+    }   
     /*Computing the projection*/
-    // cv::Mat output_projection = pointcloud2image(intrinsics_mat, extrinsicts_mat, pointcloud, img);
-    cv::Mat output_projection = projectPoints(pointcloud, img, max_intensity);
+    // cv::Mat output_projection = PointCloud2Image(intrinsics_mat, extrinsicts_mat, pointcloud, img);
+    cv::Mat output_projection = ProjectPoints(pointcloud, img, average, std_dev);
     cv::imshow("Copied", output_projection);
     int k = cv::waitKey(0); // Wait for a keystroke in the window
-
-
-
-
-    std::cout << "Intrinsic matrix: " << std::endl;
-    for(int i = 0; i < intrinsics_mat.rows; i++){
-        for(int j = 0; j < intrinsics_mat.cols; j++){
-            std::cout << intrinsics_mat.at<float>(i,j) << " ";
-        }
-        std::cout << std::endl;
+    if(k == 's')
+    {
+        cv::imwrite("projected_pointcloud.png", output_projection);
     }
-    std::cout << std::endl;
-    std::cout << "Extrinsic matrix: " << std::endl;
-    for(int i = 0; i < extrinsicts_mat.rows; i++){
-        for(int j = 0; j < extrinsicts_mat.cols; j++){
-            std::cout << extrinsicts_mat.at<float>(i,j) << " ";
-        }
-        std::cout << std::endl;
-    }
+
     return 0;
 }

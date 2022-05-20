@@ -70,33 +70,33 @@ Visualization Manager:
       Frames:
         All Enabled: false
         base_footprint:
-          Value: true
+          Value: false
         base_front_sf_link:
-          Value: true
+          Value: false
         base_link:
           Value: true
         base_rear_sf_link:
-          Value: true
+          Value: false
         camera_color_frame:
-          Value: true
+          Value: false
         camera_color_optical_frame:
-          Value: true
+          Value: false
         camera_depth_frame:
-          Value: true
+          Value: false
         camera_depth_optical_frame:
-          Value: true
+          Value: false
         camera_link:
-          Value: true
+          Value: false
         left_wheel_link:
-          Value: true
+          Value: false
         map:
-          Value: true
+          Value: false
         odom_combined:
-          Value: true
+          Value: false
         right_wheel_link:
-          Value: true
+          Value: false
         scan_odom:
-          Value: true
+          Value: false
       Marker Alpha: 1
       Marker Scale: 1
       Name: TF
@@ -214,7 +214,7 @@ Visualization Manager:
       Keep: 100
       Name: wheel odometry (red)
       Position Tolerance: 0.10000000149011612
-      Queue Size: 10
+      Queue Size: 15
       Shape:
         Alpha: 1
         Axes Length: 1
@@ -249,7 +249,7 @@ Visualization Manager:
       Keep: 100
       Name: scan odometry (gren)
       Position Tolerance: 0.10000000149011612
-      Queue Size: 10
+      Queue Size: 15
       Shape:
         Alpha: 1
         Axes Length: 1
@@ -284,7 +284,7 @@ Visualization Manager:
       Keep: 100
       Name: EKF (purple)
       Position Tolerance: 0.10000000149011612
-      Queue Size: 10
+      Queue Size: 15
       Shape:
         Alpha: 1
         Axes Length: 1
@@ -302,7 +302,7 @@ Visualization Manager:
   Global Options:
     Background Color: 48; 48; 48
     Default Light: true
-    Fixed Frame: map
+    Fixed Frame: odom_combined
     Frame Rate: 30
   Name: root
   Tools:

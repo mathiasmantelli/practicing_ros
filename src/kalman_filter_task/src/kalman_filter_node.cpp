@@ -11,7 +11,6 @@ int main(int argc, char **argv){
 
     ros::init(argc, argv, "kalman_filter_node");
     ros::NodeHandle my_node; 
-    std::cout << "TESTING" << std::endl;
     ros::Subscriber pose_subscriber = my_node.subscribe("/odom",10, receive_odom_callback);
     ros::spin();
     return 0;
