@@ -1,0 +1,6 @@
+<?xml version="1.0"?>
+<launch>
+    <node pkg="robot_state_publisher" type="robot_state_publisher" name="robot_state_publisher">
+    </node>
+    <param name="robot_description" command="cat /home/phirobotics/practicing_ros/src/image_projection/src/camera.urdf" />
+</launch>

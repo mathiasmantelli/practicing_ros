@@ -1,4 +1,5 @@
 #include "ros/ros.h"
+#include "tf2_geometry_msgs/tf2_geometry_msgs.h"
 #include "geometry_msgs/Twist.h"
 #include "nav_msgs/Odometry.h"
 #include <stdio.h>
@@ -47,34 +48,85 @@ void DefineProjectionMatrix(cv::Mat& intrinsic_matrix, cv::Mat& rotation_matrix,
     intrinsic_matrix.at<double>(1,2) = cam_size_v_px/2.0;
     intrinsic_matrix.at<double>(2,2) = 1;
 
+    cv::Mat optical_camera(3,3, cv::DataType<double>::type);
+    optical_camera.at<double>(0,0) = 0;
+    optical_camera.at<double>(1,0) = -0;
+    optical_camera.at<double>(2,0) = 1;
+
+    optical_camera.at<double>(0,1) = 1.0;
+    optical_camera.at<double>(1,1) = 0.0;
+    optical_camera.at<double>(2,1) = 0.0;
+
+    optical_camera.at<double>(0,2) = 0.0;
+    optical_camera.at<double>(1,2) = 1.0;
+    optical_camera.at<double>(2,2) = 0.0;
+
     /*Creating rotation Matrix*/
     float cam_roll_rad, cam_pitch_rad, cam_yaw_rad;
     cam_roll_rad = -0.012;
     cam_pitch_rad = 0.02;
     cam_yaw_rad = 0.0;
     cv::Mat R(3, 3, cv::DataType<double>::type);
-    R.at<double>(0,0) = cam_roll_rad;
-    R.at<double>(1,0) = 0;
-    R.at<double>(2,0) = 0;
+    R.at<double>(0,0) = 0.9998000;
+    R.at<double>(1,0) = 0.0;
+    R.at<double>(2,0) = -0.01999;
 
-    R.at<double>(0,1) = 0;
-    R.at<double>(1,1) = cam_pitch_rad;
-    R.at<double>(2,1) = 0;
+    R.at<double>(0,1) = -0.0002400;
+    R.at<double>(1,1) = 0.9999280;
+    R.at<double>(2,1) = -0.0119964;
 
-    R.at<double>(0,2) = 0;
-    R.at<double>(1,2) = 0;
-    R.at<double>(2,2) = cam_yaw_rad;
+    R.at<double>(0,2) = 0.0199966;
+    R.at<double>(1,2) = 0.0119988;
+    R.at<double>(2,2) = 0.9997280;
 
-    cv::Rodrigues(R, rotation_matrix);
+    const tf2::Quaternion quaternion(0.508, -0.502, 0.498, 0.492);//-0.005999, 0.0099999, 0.0000599, 0.99993);
+    tf2::Matrix3x3 matrix;
+    matrix.setRotation(quaternion);
+    auto row0 = matrix.getRow(0);
+    auto row1 = matrix.getRow(1);
+    auto row2 = matrix.getRow(2);
+    cv::Mat rotationMatrix_b = (cv::Mat1d(3, 3) << row0.getX(), row0.getY(), row0.getZ(), row1.getX(),
+                                row1.getY(), row1.getZ(), row2.getX(), row2.getY(), row2.getZ());
+
+/*rotation from tf optical link*/
+    // R.at<double>(0,0) = 0.0002370;
+    // R.at<double>(1,0) = -0.9999280;
+    // R.at<double>(2,0) = 0.0119970;
+
+    // R.at<double>(0,1) = -0.0200009;
+    // R.at<double>(1,1) = -0.0119993;
+    // R.at<double>(2,1) = -0.9997280;
+
+    // R.at<double>(0,2) = 0.9997999;
+    // R.at<double>(1,2) = -0.0000030;
+    // R.at<double>(2,2) = -0.0200023;
+
+    // R = R * optical_camera;
+    // R.at<double>(0,0) = 0.9998000;
+    // R.at<double>(1,0) = -0.0002400;
+    // R.at<double>(2,0) = -0.0199972;
+
+    // R.at<double>(0,1) = 0;
+    // R.at<double>(1,1) = 0.9999280;
+    // R.at<double>(2,1) = -0.0119997;
+
+    // R.at<double>(0,2) = 0.0199987;
+    // R.at<double>(1,2) = 0.0119973;
+    // R.at<double>(2,2) = 0.9997280;
+
+    cv::Rodrigues(rotationMatrix_b, rotation_matrix);
 
     /*Creating the translation matrix*/
     float cam_x_m, cam_y_m, cam_z_m;
     cam_x_m = 1.95;
     cam_y_m = 0.0;
     cam_z_m = 1.29;
-    translation_matrix.at<double>(0) = cam_x_m;
-    translation_matrix.at<double>(1) = cam_y_m;
-    translation_matrix.at<double>(2) = cam_z_m;    
+    translation_matrix.at<double>(0) = -0.016;
+    translation_matrix.at<double>(1) = 1.329;
+    translation_matrix.at<double>(2) = -1.924; 
+    // translation_matrix.at<double>(0) = cam_x_m;
+    // translation_matrix.at<double>(1) = cam_y_m;
+    // translation_matrix.at<double>(2) = cam_z_m;    
 
     /*Creating the distortion matrix*/
     distortion_matrix.at<double>(0) = 0;
@@ -100,12 +152,13 @@ int ReadPointcloudCSV(const std::string pointcloud_path, std::vector<Lidar_Point
             multiple_rows_values.push_back(row_values);
         }
         Lidar_Point new_point; 
-        new_point.x = 0;
+        new_point.x = 1.95;
         new_point.y = 0;
-        new_point.z = 0;
+        new_point.z = 1.29;
         new_point.intensity = 0;
+//        pointcloud.push_back(new_point);
         double sum = 0; 
-        for(int i = 0; i < multiple_rows_values[0].size(); i++){
+        for(int i = 0; i < 3; i++){
             new_point.x = multiple_rows_values[0][i];
             new_point.y = multiple_rows_values[1][i];
             new_point.z = multiple_rows_values[2][i];
@@ -113,6 +166,7 @@ int ReadPointcloudCSV(const std::string pointcloud_path, std::vector<Lidar_Point
             sum += new_point.intensity;
             pointcloud.push_back(new_point);
         }   
+        std::cout << "SIZE: " << pointcloud.size() << std::endl;
         float variance = 0; 
         average = sum/multiple_rows_values[0].size();
         for(int i = 0; i < multiple_rows_values[0].size(); i++){
@@ -147,6 +201,10 @@ cv::Mat ProjectPoints(const std::vector<Lidar_Point> pointcloud, const cv::Mat i
     cv::projectPoints(points, rotation_matrix, translation_matrix, intrinsic_matrix, distortion_matrix, projectedPoints);
         
     /*Drawing the points*/
+    int index = 0;
+    std::cout << "[x, y, z]: " << projectedPoints.at(index).x << ", " << projectedPoints.at(index).y <<  std::endl;
+    std::cout << "[x, y, z]: " << points.at(index).x << ", " << points.at(index).y << ", " << points.at(index).z << std::endl;
+    // cv::circle(pointcloud_projected, cv::Point(int(projectedPoints.at(index).x), int(projectedPoints.at(index).y)), 5, cv::Scalar(0, 0,255), -1);      
     for(int index = 0; index < projectedPoints.size() - 1; index++){
         if(projectedPoints.at(index).x > 0 && projectedPoints.at(index).x < 1280 && 
            projectedPoints.at(index).y > 0 && projectedPoints.at(index).y < 960)
