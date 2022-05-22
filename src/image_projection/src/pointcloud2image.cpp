@@ -27,54 +27,61 @@ int LoadImage(const std::string image_path, cv::Mat& img){
     return 1;
 }
 
-std::tuple<cv::Mat, cv::Mat> DefineProjectionMatrix(){
-    /*Creating Intrinsic Matrix*/
+void DefineProjectionMatrix(cv::Mat& intrinsicMat, cv::Mat& Rvec, cv::Mat& tvec, cv::Mat& distCoeffs){
+    /*Creating the intrinsic matrix*/
     float focal_len_m, pixel_dim_m;
     int cam_size_u_px, cam_size_v_px;
     focal_len_m = 0.00605f;
     pixel_dim_m = 0.00000375f;
     cam_size_u_px = 1280;
     cam_size_v_px = 960;
-    cv::Mat intrinsic_mat(3,3, cv::DataType<double>::type);
-    intrinsic_mat.at<double>(0,0) = focal_len_m/pixel_dim_m;
-    intrinsic_mat.at<double>(1,0) = 0;
-    intrinsic_mat.at<double>(2,0) = 0;
+    intrinsicMat.at<double>(0,0) = focal_len_m/pixel_dim_m;
+    intrinsicMat.at<double>(1,0) = 0;
+    intrinsicMat.at<double>(2,0) = 0;
 
-    intrinsic_mat.at<double>(0,1) = 0;
-    intrinsic_mat.at<double>(1,1) = focal_len_m/pixel_dim_m;
-    intrinsic_mat.at<double>(2,1) = 0;
+    intrinsicMat.at<double>(0,1) = 0;
+    intrinsicMat.at<double>(1,1) = focal_len_m/pixel_dim_m;
+    intrinsicMat.at<double>(2,1) = 0;
 
-    intrinsic_mat.at<double>(0,2) = cam_size_u_px/2.0;
-    intrinsic_mat.at<double>(1,2) = cam_size_v_px/2.0;
-    intrinsic_mat.at<double>(2,2) = 1;
+    intrinsicMat.at<double>(0,2) = cam_size_u_px/2.0;
+    intrinsicMat.at<double>(1,2) = cam_size_v_px/2.0;
+    intrinsicMat.at<double>(2,2) = 1;
 
-    /*Creating Extrinsic Matrix*/
-    float cam_x_m, cam_y_m, cam_z_m, cam_roll_rad, cam_pitch_rad, cam_yaw_rad;
-    cam_x_m = 1.95;
-    cam_y_m = 0.0;
-    cam_z_m = 1.29;
+    /*Creating rotation Matrix*/
+    float cam_roll_rad, cam_pitch_rad, cam_yaw_rad;
     cam_roll_rad = -0.012;
     cam_pitch_rad = 0.02;
     cam_yaw_rad = 0.0;
-    
-    cv::Mat extrinsic_mat(3,4, cv::DataType<double>::type);
-    extrinsic_mat.at<double>(0,0) = cam_roll_rad;
-    extrinsic_mat.at<double>(1,0) = 0;
-    extrinsic_mat.at<double>(2,0) = 0;
+    cv::Mat R(3, 3, cv::DataType<double>::type);
+    R.at<double>(0,0) = cam_roll_rad;
+    R.at<double>(1,0) = 0;
+    R.at<double>(2,0) = 0;
 
-    extrinsic_mat.at<double>(0,1) = 0;
-    extrinsic_mat.at<double>(1,1) = cam_pitch_rad;
-    extrinsic_mat.at<double>(2,1) = 0;
+    R.at<double>(0,1) = 0;
+    R.at<double>(1,1) = cam_pitch_rad;
+    R.at<double>(2,1) = 0;
 
-    extrinsic_mat.at<double>(0,2) = 0;
-    extrinsic_mat.at<double>(1,2) = 0;
-    extrinsic_mat.at<double>(2,2) = cam_y_m;
+    R.at<double>(0,2) = 0;
+    R.at<double>(1,2) = 0;
+    R.at<double>(2,2) = cam_yaw_rad;
 
-    extrinsic_mat.at<double>(0,3) = cam_x_m;
-    extrinsic_mat.at<double>(1,3) = cam_y_m;
-    extrinsic_mat.at<double>(2,3) = cam_z_m;
+    cv::Rodrigues(R, Rvec);
 
-    return std::make_tuple(intrinsic_mat, extrinsic_mat);
+    /*Creating the translation matrix*/
+    float cam_x_m, cam_y_m, cam_z_m;
+    cam_x_m = 1.95;
+    cam_y_m = 0.0;
+    cam_z_m = 1.29;
+    tvec.at<double>(0) = cam_x_m;
+    tvec.at<double>(1) = cam_y_m;
+    tvec.at<double>(2) = cam_z_m;    
+
+    /*Creating the distortion matrix*/
+    distCoeffs.at<double>(0) = 0;
+    distCoeffs.at<double>(1) = 0;
+    distCoeffs.at<double>(2) = 0;
+    distCoeffs.at<double>(3) = 0;
+    distCoeffs.at<double>(4) = 0;
 }
 
 int ReadPointcloudCSV(const std::string pointcloud_path, std::vector<Lidar_Point>& pointcloud, float& average, float& std_dev){
@@ -119,138 +126,48 @@ int ReadPointcloudCSV(const std::string pointcloud_path, std::vector<Lidar_Point
     }
 }
 
-cv::Mat PointCloud2Image(const cv::Mat intrinsics_mat, const  cv::Mat extrinsicts_mat, const std::vector<Lidar_Point> pointcloud, const cv::Mat img){
-    cv::Mat pointcloud_projected;
-    img.copyTo(pointcloud_projected);
-    cv::Mat point_3d(4,1, cv::DataType<double>::type);
-    point_3d.at<double>(0,0) = pointcloud[0].x;
-    point_3d.at<double>(1,0) = pointcloud[0].y;
-    point_3d.at<double>(2,0) = pointcloud[0].z;    
-    point_3d.at<double>(3,0) = 1.0;
-    cv::Mat result, result2;
-    std::cout << "POINT 3D: [" << point_3d.rows << ", " << point_3d.cols << "]" << std::endl;
-    std::cout << "Point 3D[" << point_3d.at<float>(0,0) << ", "  << point_3d.at<float>(1,0) << ", " << point_3d.at<float>(2,0) << "]" << std::endl;    
-    std::cout << "Intrinsics: [" << intrinsics_mat.rows << ", " << intrinsics_mat.cols << "] Extrinsic: ["  << extrinsicts_mat.rows << ", " << extrinsicts_mat.cols << "] Point3D: ["   << point_3d.rows << ", " << point_3d.cols << "]" << std::endl;
-    result = extrinsicts_mat * point_3d;
-    std::cout << "EXTRINSICTS RESULT: [" << result.rows << ", " << result.cols << "]" << std::endl;
-    std::cout << "result[" << result.at<float>(0,0) << ", "  << result.at<float>(1,0) << ", " << result.at<float>(2,0) << "]" << std::endl;    
-    result = intrinsics_mat * extrinsicts_mat * point_3d;
-    std::cout << "INTRINSICTS RESULT: [" << result.rows << ", " << result.cols << "]" << std::endl;
-    std::cout << "result[" << result.at<float>(0,0) << ", "  << result.at<float>(1,0) << ", " << result.at<float>(2,0) << "]" << std::endl;    
-    cv::circle(pointcloud_projected, cv::Point(int(result.at<float>(0,0)), int(result.at<float>(0,1))), 5, cv::Scalar(255, 0,0), -1);
-    std::cout <<" ----------------------------- " << std::endl; //
-    int index = 5000;
-    point_3d.at<float>(0,0) = pointcloud[index].x;
-    point_3d.at<float>(1,0) = pointcloud[index].y;
-    point_3d.at<float>(2,0) = pointcloud[index].z;    
-    std::cout << "POINT 3D: [" << point_3d.rows << ", " << point_3d.cols << "]" << std::endl;
-    std::cout << "Point 3D[" << point_3d.at<float>(0,0) << ", "  << point_3d.at<float>(1,0) << ", " << point_3d.at<float>(2,0) << "]" << std::endl;    
-    std::cout << "Intrinsics: [" << intrinsics_mat.rows << ", " << intrinsics_mat.cols << "] Extrinsic: ["  << extrinsicts_mat.rows << ", " << extrinsicts_mat.cols << "] Point3D: ["   << point_3d.rows << ", " << point_3d.cols << "]" << std::endl;
-    result = extrinsicts_mat * point_3d;
-    std::cout << "EXTRINSICTS RESULT: [" << result.rows << ", " << result.cols << "]" << std::endl;
-    std::cout << "result[" << result.at<float>(0,0) << ", "  << result.at<float>(1,0) << ", " << result.at<float>(2,0) << "]" << std::endl;    
-    result2 = intrinsics_mat * extrinsicts_mat * point_3d;
-    std::cout << "INTRINSICTS RESULT: [" << result2.rows << ", " << result2.cols << "]" << std::endl;
-    std::cout << "result[" << result2.at<float>(0,0) << ", "  << result2.at<float>(1,0) << ", " << result2.at<float>(2,0) << "]" << std::endl;    
-    cv::circle(pointcloud_projected, cv::Point(int(result.at<float>(0,0)), int(result2.at<float>(0,1))), 5, cv::Scalar(255, 0,0), -1);
-
-
+cv::Mat ProjectPoints(const std::vector<Lidar_Point> pointcloud, const cv::Mat img, const cv::Mat intrinsicMat, 
+                      const cv::Mat Rvec, const cv::Mat tvec, const cv::Mat distCoeffs, const float average, const float std_dev){
     
-    // for(int i = 0; i < pointcloud.size(); i++){
-    //     point_3d.at<float>(0,0) = pointcloud[i].x;
-    //     point_3d.at<float>(1,0) = pointcloud[i].y;
-    //     point_3d.at<float>(2,0) = pointcloud[i].z;
-
-    //     result = extrinsicts_mat * point_3d; 
-    //     result = intrinsics_mat * result; 
-    //     if(result.at<float>(0,0) > 0 && result.at<float>(0,0) < 1280 && result.at<float>(0,1) > 0 && result.at<float>(0,1) < 960)
-    //         cv::circle(pointcloud_projected, cv::Point(int(result.at<float>(0,0)), int(result.at<float>(0,1))), 5, cv::Scalar(255, 0,0), -1);
-
-    // }
-    
-    return pointcloud_projected;
-}
-
-cv::Mat ProjectPoints(const std::vector<Lidar_Point> pointcloud, const cv::Mat img, float average, float std_dev){
+    /*Preparing the 3D points*/
     cv::Mat pointcloud_projected;
     img.copyTo(pointcloud_projected);
     std::vector<cv::Point3f> points; 
-    for(auto my_point : pointcloud){
+    for(auto my_point : pointcloud)
         points.emplace_back(my_point.x, my_point.y, my_point.z);
-    }
-
-    cv::Mat intrinsicMat(3,3, cv::DataType<double>::type);
-    intrinsicMat.at<double>(0,0) = 0.00605/0.00000375;
-    intrinsicMat.at<double>(1,0) = 0;
-    intrinsicMat.at<double>(2,0) = 0;
-
-    intrinsicMat.at<double>(0,1) = 0;
-    intrinsicMat.at<double>(1,1) = 0.00605/0.00000375;
-    intrinsicMat.at<double>(2,1) = 0;
-
-    intrinsicMat.at<double>(0,2) = 1280/2.0;
-    intrinsicMat.at<double>(1,2) = 960/2.0;
-    intrinsicMat.at<double>(2,2) = 1;
-
-    cv::Mat R(3, 3, cv::DataType<double>::type);
-    R.at<double>(0,0) = -0.52;
-    R.at<double>(1,0) = 0;
-    R.at<double>(2,0) = 0;
-
-    R.at<double>(0,1) = 0;
-    R.at<double>(1,1) = 0.02;
-    R.at<double>(2,1) = 0;
-
-    R.at<double>(0,2) = 0;
-    R.at<double>(1,2) = 0;
-    R.at<double>(2,2) = 0;
-
-
-    cv::Mat Rvec(3, 1, cv::DataType<double>::type);
-    cv::Rodrigues(R, Rvec);
-
-    cv::Mat rvec(3, 1, cv::DataType<double>::type);
-    rvec.at<double>(0) = -0.012;
-    rvec.at<double>(1) = 0.02;
-    rvec.at<double>(2) = 0;
-
-
-    cv::Mat tvec(3, 1, cv::DataType<double>::type);
-    tvec.at<double>(0) = 1.95;
-    tvec.at<double>(1) = 0.0;
-    tvec.at<double>(2) = 1.29;    
-
-    cv::Mat distCoeffs(5,1,cv::DataType<double>::type);
-    distCoeffs.at<double>(0) = 0;
-    distCoeffs.at<double>(1) = 0;
-    distCoeffs.at<double>(2) = 0;
-    distCoeffs.at<double>(3) = 0;
-    distCoeffs.at<double>(4) = 0;
+    
 
     std::cout << "Intrisic matrix: " << intrinsicMat << std::endl << std::endl;
     std::cout << "Rotation vector: " << Rvec << std::endl << std::endl;
     std::cout << "Translation vector: " << tvec << std::endl << std::endl;
     std::cout << "Distortion coef: " << distCoeffs << std::endl << std::endl;
 
+    /*Projecting the 3D points into the 2D image*/
     std::vector<cv::Point2f> projectedPoints;
     cv::projectPoints(points, Rvec, tvec, intrinsicMat, distCoeffs, projectedPoints);
         
+    /*Drawing the points*/
     for(int index = 0; index < projectedPoints.size() - 1; index++){
         if(projectedPoints.at(index).x > 0 && projectedPoints.at(index).x < 1280 && 
            projectedPoints.at(index).y > 0 && projectedPoints.at(index).y < 960)
             cv::circle(pointcloud_projected, cv::Point(int(projectedPoints.at(index).x), int(projectedPoints.at(index).y)), 5, cv::Scalar(0, 0,255*((pointcloud[index].intensity - average)/std_dev)), -1);      
     }
+
     return pointcloud_projected;
 }
 
 int main(int argc, char **argv){
-    /*Defining the projection matrix (first the intrinsic and later extrinsic matrices)*/
-    cv::Mat intrinsics_mat, extrinsicts_mat;
-    std::tie(intrinsics_mat, extrinsicts_mat) = DefineProjectionMatrix();
+    /*Defining the main matrices*/
+    cv::Mat intrinsicMat(3,3, cv::DataType<double>::type);
+    cv::Mat Rvec(3, 1, cv::DataType<double>::type);
+    cv::Mat tvec(3, 1, cv::DataType<double>::type);
+    cv::Mat distCoeffs(5,1,cv::DataType<double>::type);
+    DefineProjectionMatrix(intrinsicMat, Rvec, tvec, distCoeffs);
 
     /*Reading the point cloud from a CVS file*/
     float average, std_dev;
-    std::string pointcloud_csv_file = "../../../coding_task/pointcloud.csv";
+    // std::string pointcloud_csv_file = "../../../coding_task/pointcloud.csv";
+    std::string pointcloud_csv_file = "pointcloud.csv";
     std::vector<Lidar_Point> pointcloud;
     pointcloud.clear();
     int pointcloud_read_sucess = ReadPointcloudCSV(pointcloud_csv_file, pointcloud, average, std_dev);
@@ -263,7 +180,8 @@ int main(int argc, char **argv){
     /*Reading the camera image from a JPG file*/
     cv::Mat img;
     int image_read_success;
-    std::string image_path = "../../../coding_task/cameraimage.jpeg";
+    // std::string image_path = "../../../coding_task/cameraimage.jpeg";
+    std::string image_path = "cameraimage.jpeg";
     image_read_success = LoadImage(image_path, img);
     if(image_read_success){
         std::cout << "Image has been read" << std::endl;
@@ -271,8 +189,7 @@ int main(int argc, char **argv){
         std::cout << "Could not read the image: " << image_path << std::endl;
     }   
     /*Computing the projection*/
-    // cv::Mat output_projection = PointCloud2Image(intrinsics_mat, extrinsicts_mat, pointcloud, img);
-    cv::Mat output_projection = ProjectPoints(pointcloud, img, average, std_dev);
+    cv::Mat output_projection = ProjectPoints(pointcloud, img, intrinsicMat, Rvec, tvec, distCoeffs, average, std_dev);
     cv::imshow("Copied", output_projection);
     int k = cv::waitKey(0); // Wait for a keystroke in the window
     if(k == 's')
