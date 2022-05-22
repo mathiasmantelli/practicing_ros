@@ -27,7 +27,7 @@ int LoadImage(const std::string image_path, cv::Mat& img){
     return 1;
 }
 
-void DefineProjectionMatrix(cv::Mat& intrinsicMat, cv::Mat& Rvec, cv::Mat& tvec, cv::Mat& distCoeffs){
+void DefineProjectionMatrix(cv::Mat& intrinsic_matrix, cv::Mat& rotation_matrix, cv::Mat& translation_matrix, cv::Mat& distortion_matrix){
     /*Creating the intrinsic matrix*/
     float focal_len_m, pixel_dim_m;
     int cam_size_u_px, cam_size_v_px;
@@ -35,17 +35,17 @@ void DefineProjectionMatrix(cv::Mat& intrinsicMat, cv::Mat& Rvec, cv::Mat& tvec,
     pixel_dim_m = 0.00000375f;
     cam_size_u_px = 1280;
     cam_size_v_px = 960;
-    intrinsicMat.at<double>(0,0) = focal_len_m/pixel_dim_m;
-    intrinsicMat.at<double>(1,0) = 0;
-    intrinsicMat.at<double>(2,0) = 0;
+    intrinsic_matrix.at<double>(0,0) = focal_len_m/pixel_dim_m;
+    intrinsic_matrix.at<double>(1,0) = 0;
+    intrinsic_matrix.at<double>(2,0) = 0;
 
-    intrinsicMat.at<double>(0,1) = 0;
-    intrinsicMat.at<double>(1,1) = focal_len_m/pixel_dim_m;
-    intrinsicMat.at<double>(2,1) = 0;
+    intrinsic_matrix.at<double>(0,1) = 0;
+    intrinsic_matrix.at<double>(1,1) = focal_len_m/pixel_dim_m;
+    intrinsic_matrix.at<double>(2,1) = 0;
 
-    intrinsicMat.at<double>(0,2) = cam_size_u_px/2.0;
-    intrinsicMat.at<double>(1,2) = cam_size_v_px/2.0;
-    intrinsicMat.at<double>(2,2) = 1;
+    intrinsic_matrix.at<double>(0,2) = cam_size_u_px/2.0;
+    intrinsic_matrix.at<double>(1,2) = cam_size_v_px/2.0;
+    intrinsic_matrix.at<double>(2,2) = 1;
 
     /*Creating rotation Matrix*/
     float cam_roll_rad, cam_pitch_rad, cam_yaw_rad;
@@ -65,23 +65,23 @@ void DefineProjectionMatrix(cv::Mat& intrinsicMat, cv::Mat& Rvec, cv::Mat& tvec,
     R.at<double>(1,2) = 0;
     R.at<double>(2,2) = cam_yaw_rad;
 
-    cv::Rodrigues(R, Rvec);
+    cv::Rodrigues(R, rotation_matrix);
 
     /*Creating the translation matrix*/
     float cam_x_m, cam_y_m, cam_z_m;
     cam_x_m = 1.95;
     cam_y_m = 0.0;
     cam_z_m = 1.29;
-    tvec.at<double>(0) = cam_x_m;
-    tvec.at<double>(1) = cam_y_m;
-    tvec.at<double>(2) = cam_z_m;    
+    translation_matrix.at<double>(0) = cam_x_m;
+    translation_matrix.at<double>(1) = cam_y_m;
+    translation_matrix.at<double>(2) = cam_z_m;    
 
     /*Creating the distortion matrix*/
-    distCoeffs.at<double>(0) = 0;
-    distCoeffs.at<double>(1) = 0;
-    distCoeffs.at<double>(2) = 0;
-    distCoeffs.at<double>(3) = 0;
-    distCoeffs.at<double>(4) = 0;
+    distortion_matrix.at<double>(0) = 0;
+    distortion_matrix.at<double>(1) = 0;
+    distortion_matrix.at<double>(2) = 0;
+    distortion_matrix.at<double>(3) = 0;
+    distortion_matrix.at<double>(4) = 0;
 }
 
 int ReadPointcloudCSV(const std::string pointcloud_path, std::vector<Lidar_Point>& pointcloud, float& average, float& std_dev){
@@ -126,8 +126,8 @@ int ReadPointcloudCSV(const std::string pointcloud_path, std::vector<Lidar_Point
     }
 }
 
-cv::Mat ProjectPoints(const std::vector<Lidar_Point> pointcloud, const cv::Mat img, const cv::Mat intrinsicMat, 
-                      const cv::Mat Rvec, const cv::Mat tvec, const cv::Mat distCoeffs, const float average, const float std_dev){
+cv::Mat ProjectPoints(const std::vector<Lidar_Point> pointcloud, const cv::Mat img, const cv::Mat intrinsic_matrix, 
+                      const cv::Mat rotation_matrix, const cv::Mat translation_matrix, const cv::Mat distortion_matrix, const float average, const float std_dev){
     
     /*Preparing the 3D points*/
     cv::Mat pointcloud_projected;
@@ -137,14 +137,14 @@ cv::Mat ProjectPoints(const std::vector<Lidar_Point> pointcloud, const cv::Mat i
         points.emplace_back(my_point.x, my_point.y, my_point.z);
     
 
-    std::cout << "Intrisic matrix: " << intrinsicMat << std::endl << std::endl;
-    std::cout << "Rotation vector: " << Rvec << std::endl << std::endl;
-    std::cout << "Translation vector: " << tvec << std::endl << std::endl;
-    std::cout << "Distortion coef: " << distCoeffs << std::endl << std::endl;
+    std::cout << "Intrisic matrix: " << intrinsic_matrix << std::endl << std::endl;
+    std::cout << "Rotation vector: " << rotation_matrix << std::endl << std::endl;
+    std::cout << "Translation vector: " << translation_matrix << std::endl << std::endl;
+    std::cout << "Distortion coef: " << distortion_matrix << std::endl << std::endl;
 
     /*Projecting the 3D points into the 2D image*/
     std::vector<cv::Point2f> projectedPoints;
-    cv::projectPoints(points, Rvec, tvec, intrinsicMat, distCoeffs, projectedPoints);
+    cv::projectPoints(points, rotation_matrix, translation_matrix, intrinsic_matrix, distortion_matrix, projectedPoints);
         
     /*Drawing the points*/
     for(int index = 0; index < projectedPoints.size() - 1; index++){
@@ -158,11 +158,11 @@ cv::Mat ProjectPoints(const std::vector<Lidar_Point> pointcloud, const cv::Mat i
 
 int main(int argc, char **argv){
     /*Defining the main matrices*/
-    cv::Mat intrinsicMat(3,3, cv::DataType<double>::type);
-    cv::Mat Rvec(3, 1, cv::DataType<double>::type);
-    cv::Mat tvec(3, 1, cv::DataType<double>::type);
-    cv::Mat distCoeffs(5,1,cv::DataType<double>::type);
-    DefineProjectionMatrix(intrinsicMat, Rvec, tvec, distCoeffs);
+    cv::Mat intrinsic_matrix(3,3, cv::DataType<double>::type);
+    cv::Mat rotation_matrix(3, 1, cv::DataType<double>::type);
+    cv::Mat translation_matrix(3, 1, cv::DataType<double>::type);
+    cv::Mat distortion_matrix(5,1,cv::DataType<double>::type);
+    DefineProjectionMatrix(intrinsic_matrix, rotation_matrix, translation_matrix, distortion_matrix);
 
     /*Reading the point cloud from a CVS file*/
     float average, std_dev;
@@ -189,7 +189,7 @@ int main(int argc, char **argv){
         std::cout << "Could not read the image: " << image_path << std::endl;
     }   
     /*Computing the projection*/
-    cv::Mat output_projection = ProjectPoints(pointcloud, img, intrinsicMat, Rvec, tvec, distCoeffs, average, std_dev);
+    cv::Mat output_projection = ProjectPoints(pointcloud, img, intrinsic_matrix, rotation_matrix, translation_matrix, distortion_matrix, average, std_dev);
     cv::imshow("Copied", output_projection);
     int k = cv::waitKey(0); // Wait for a keystroke in the window
     if(k == 's')
