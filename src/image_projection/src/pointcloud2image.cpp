@@ -48,73 +48,34 @@ void DefineProjectionMatrix(cv::Mat& intrinsic_matrix, cv::Mat& rotation_matrix,
     intrinsic_matrix.at<double>(1,2) = cam_size_v_px/2.0;
     intrinsic_matrix.at<double>(2,2) = 1;
 
-    cv::Mat optical_camera(3,3, cv::DataType<double>::type);
-    optical_camera.at<double>(0,0) = 0;
-    optical_camera.at<double>(1,0) = -0;
-    optical_camera.at<double>(2,0) = 1;
-
-    optical_camera.at<double>(0,1) = 1.0;
-    optical_camera.at<double>(1,1) = 0.0;
-    optical_camera.at<double>(2,1) = 0.0;
-
-    optical_camera.at<double>(0,2) = 0.0;
-    optical_camera.at<double>(1,2) = 1.0;
-    optical_camera.at<double>(2,2) = 0.0;
-
     /*Creating rotation Matrix*/
     float cam_roll_rad, cam_pitch_rad, cam_yaw_rad;
     cam_roll_rad = -0.012;
     cam_pitch_rad = 0.02;
     cam_yaw_rad = 0.0;
     cv::Mat R(3, 3, cv::DataType<double>::type);
-    R.at<double>(0,0) = 0.9998000;
+    R.at<double>(0,0) = -1.0;
     R.at<double>(1,0) = 0.0;
-    R.at<double>(2,0) = -0.01999;
+    R.at<double>(2,0) = 0;
 
-    R.at<double>(0,1) = -0.0002400;
-    R.at<double>(1,1) = 0.9999280;
-    R.at<double>(2,1) = -0.0119964;
+    R.at<double>(0,1) = 0;
+    R.at<double>(1,1) = 1.0;
+    R.at<double>(2,1) = 0;
 
-    R.at<double>(0,2) = 0.0199966;
-    R.at<double>(1,2) = 0.0119988;
-    R.at<double>(2,2) = 0.9997280;
+    R.at<double>(0,2) = 0;
+    R.at<double>(1,2) = 0;
+    R.at<double>(2,2) = -1.0;
 
-    const tf2::Quaternion quaternion(0.508, -0.502, 0.498, 0.492);//-0.005999, 0.0099999, 0.0000599, 0.99993);
-    tf2::Matrix3x3 matrix;
-    matrix.setRotation(quaternion);
-    auto row0 = matrix.getRow(0);
-    auto row1 = matrix.getRow(1);
-    auto row2 = matrix.getRow(2);
-    cv::Mat rotationMatrix_b = (cv::Mat1d(3, 3) << row0.getX(), row0.getY(), row0.getZ(), row1.getX(),
-                                row1.getY(), row1.getZ(), row2.getX(), row2.getY(), row2.getZ());
+    // const tf2::Quaternion quaternion(0.508, -0.502, 0.498, 0.492);
+    // tf2::Matrix3x3 matrix;
+    // matrix.setRotation(quaternion);
+    // auto row0 = matrix.getRow(0);
+    // auto row1 = matrix.getRow(1);
+    // auto row2 = matrix.getRow(2);
+    // cv::Mat rotationMatrix_b = (cv::Mat1d(3, 3) << row0.getX(), row0.getY(), row0.getZ(), row1.getX(),
+    //                             row1.getY(), row1.getZ(), row2.getX(), row2.getY(), row2.getZ());
 
-/*rotation from tf optical link*/
-    // R.at<double>(0,0) = 0.0002370;
-    // R.at<double>(1,0) = -0.9999280;
-    // R.at<double>(2,0) = 0.0119970;
-
-    // R.at<double>(0,1) = -0.0200009;
-    // R.at<double>(1,1) = -0.0119993;
-    // R.at<double>(2,1) = -0.9997280;
-
-    // R.at<double>(0,2) = 0.9997999;
-    // R.at<double>(1,2) = -0.0000030;
-    // R.at<double>(2,2) = -0.0200023;
-
-    // R = R * optical_camera;
-    // R.at<double>(0,0) = 0.9998000;
-    // R.at<double>(1,0) = -0.0002400;
-    // R.at<double>(2,0) = -0.0199972;
-
-    // R.at<double>(0,1) = 0;
-    // R.at<double>(1,1) = 0.9999280;
-    // R.at<double>(2,1) = -0.0119997;
-
-    // R.at<double>(0,2) = 0.0199987;
-    // R.at<double>(1,2) = 0.0119973;
-    // R.at<double>(2,2) = 0.9997280;
-
-    cv::Rodrigues(rotationMatrix_b, rotation_matrix);
+    cv::Rodrigues(R, rotation_matrix);
 
     /*Creating the translation matrix*/
     float cam_x_m, cam_y_m, cam_z_m;
